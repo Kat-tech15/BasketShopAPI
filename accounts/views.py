@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
-from .serializers import UserSerializer
+from .serializers import UserSerializer,LoginSerializer, EmptySerializer
 
 
 class RegisterView(generics.GenericAPIView):
@@ -13,16 +13,22 @@ class RegisterView(generics.GenericAPIView):
         if serializer.is_valid():
             user = serializer.save()
             token, _ = Token.objects.get_or_create(user=user)
-            return Response({'message': 'User registered successfuly!'}, status=status.HTTP_201_CREATED)
+            return Response({'message': 'User registered successfuly!',
+                            'token': token.key,
+                             'username': user.username,
+                              'email': user.email},
+                                status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class LoginView(generics.GenericAPIView):
-    serializer_class = UserSerializer
-    def post(self, request):
-        # can also use email in place of username
-        #email = request.data.get('email')
-        username = request.data.get('username')
-        password = request.data.get('password')
+    serializer_class = LoginSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        username = serializer.validated_data['username']
+        password = serializer.validated_data['password']
 
         user = authenticate(username=username, password=password)
 
@@ -30,13 +36,15 @@ class LoginView(generics.GenericAPIView):
             token, created = Token.objects.get_or_create(user=user)
             return Response({'token': token.key,
                               'username': user.username,
-                              'email': user.email
+                              'email': user.email,
+                              'message': 'Logged in successfully!',
             })
         return Response({'message': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)
     
 class LogoutView(generics.GenericAPIView):
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = EmptySerializer
+
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         try:
