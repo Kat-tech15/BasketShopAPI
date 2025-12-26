@@ -1,5 +1,4 @@
 from django.contrib import admin
-from .mosdels import Review
+from .models import Review
 
 admin.site.register(Review)
-
